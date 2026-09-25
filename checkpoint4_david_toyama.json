@@ -1,0 +1,637 @@
+{
+  "name": "Soporte - Marimoon (Checkpoint 4)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "id": "a6b56725-85bb-476f-954d-a2cee97717e6",
+      "name": "Gmail Trigger - Casilla Soporte",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -656,
+        80
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "L2QYh0GLIPbxw5iN",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.Subject }}",
+              "rightValue": "Auto-reply",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              },
+              "id": "5bba2ef1-683b-49d8-b45d-2baedb1bd2e5"
+            },
+            {
+              "leftValue": "={{ $json.Subject }}",
+              "rightValue": "Out of Office",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              },
+              "id": "92bf6d2e-ea92-465b-baf5-8e4cc8b4fc7c"
+            },
+            {
+              "leftValue": "={{ $json.Subject }}",
+              "rightValue": "Undeliverable",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              },
+              "id": "84349999-1566-498b-8f13-553e01a9c8b0"
+            },
+            {
+              "leftValue": "={{ $json.From }}",
+              "rightValue": "no-reply",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              },
+              "id": "7cc568fb-8ebd-449a-a325-bf9591ce5c0d"
+            },
+            {
+              "leftValue": "={{ $json.From }}",
+              "rightValue": "noreply",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              },
+              "id": "18d1e0de-3116-4bd5-b73a-5dbbe2321ad2"
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "092ed835-2a31-4f1f-af1d-9308121df6c8",
+      "name": "① ¿Es Auto-Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -416,
+        80
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "7031d58b-a468-4111-abd7-1a7f0e734cbb",
+      "name": "Cortar Bucle (Auto-Reply Detectado)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "model": "mistral:latest",
+        "options": {}
+      },
+      "id": "0312ecd0-cbc1-430c-b7e8-a8e6a3400168",
+      "name": "Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        368
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "rqPpKyArOFa6tOhL",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Asunto del correo: {{ $('Gmail Trigger - Casilla Soporte').item.json.Subject }}\n\nCuerpo del correo:\n{{ $('Gmail Trigger - Casilla Soporte').item.json.text || $('Gmail Trigger - Casilla Soporte').item.json.snippet || '(sin contenido de texto)' }}",
+        "options": {
+          "systemMessage": "Eres el Agente de Soporte al Cliente de Marimoon (comunidad freemium de anime/otaku para jóvenes fans de Latinoamérica). Recibes el asunto y cuerpo de un correo real de un usuario que escribió a la casilla de soporte.\n\nOBJETIVO:\n1. Clasifica brevemente el tema del correo (ej: duda de cuenta, problema de pago, sugerencia, reclamo, spam/comercial).\n2. Redacta una respuesta breve, cordial y en español neutro latinoamericano, tal como la escribiría el equipo de soporte de Marimoon. No prometas cosas que no sabes (reembolsos, plazos exactos) sin evidencia en el correo original.\n\nSALIDA:\nDevuelve únicamente el texto de la respuesta redactada, lista para copiarse en un borrador de correo. No agregues explicaciones sobre tu clasificación ni texto fuera de la respuesta misma.",
+          "maxIterations": 3
+        }
+      },
+      "id": "493b8e10-a50e-4b84-a18e-e11569840c17",
+      "name": "Agente de Soporte (Clasifica y Redacta)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -176,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "contact_email",
+              "type": "string",
+              "value": "={{ $('Gmail Trigger - Casilla Soporte').item.json.From.match(/<(.+)>/) ? $('Gmail Trigger - Casilla Soporte').item.json.\nFrom.match(/<(.+)>/)[1] : $('Gmail Trigger - Casilla Soporte').item.json.From }}",
+              "id": "0ad56c83-b3db-4475-b734-a06587ab5f5e"
+            },
+            {
+              "name": "contact_name",
+              "type": "string",
+              "value": "={{ $('Gmail Trigger - Casilla Soporte').item.json.From.replace(/<.+>/, '').trim() }}",
+              "id": "ef45240b-5284-48a5-8cc2-50f920dd54e7"
+            },
+            {
+              "name": "subject",
+              "type": "string",
+              "value": "={{ $('Gmail Trigger - Casilla Soporte').item.json.Subject || '(sin asunto)' }}",
+              "id": "a146b422-f934-43bb-8b6f-53374dfceeaa"
+            },
+            {
+              "name": "thread_id",
+              "type": "string",
+              "value": "={{ $('Gmail Trigger - Casilla Soporte').item.json.threadId }}",
+              "id": "c10711ba-815c-4ed1-bd8f-0767a90a0956"
+            },
+            {
+              "name": "respuesta_ia",
+              "type": "string",
+              "value": "={{ $json.output }}",
+              "id": "af66e964-3b96-4985-b451-7a50bbd0a815"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8e95ff6a-e27a-4c4c-ae1a-e9d59ec7c1d7",
+      "name": "④ Limpiar y Validar Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        64,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.contact_email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "637d945c-e5e5-4be9-86bc-f2711929fbea",
+      "name": "¿Email Remitente Válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        304,
+        192
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "8f88c0ff-ec30-444c-a4e3-789226deadb8",
+      "name": "Descartar (Email Vacío - evita 400)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        544,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "operation": "search",
+        "filterGroupsUi": {
+          "filterGroupsValues": [
+            {
+              "filtersUi": {
+                "filterValues": [
+                  {
+                    "propertyName": "email|string",
+                    "value": "={{ $json.contact_email }}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "id": "ef8cfca9-3cbc-4fe2-a117-5ea2f045ea95",
+      "name": "② Buscar Contacto en HubSpot (Look up)",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.1,
+      "position": [
+        544,
+        80
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "RvtNOnm5GFZUedw7",
+          "name": "HubSpot Service Key account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              },
+              "id": "808a3616-488a-48ac-ba1c-a92c3b064e37"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "85d112e7-08fe-4c79-a0c5-4bc706cf7d8d",
+      "name": "¿Contacto Ya Existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        784,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "email": "={{ $('④ Limpiar y Validar Payload').item.json.contact_email }}",
+        "additionalFields": {},
+        "options": {}
+      },
+      "id": "1f681444-7d99-442a-9f3a-90c6ca59939d",
+      "name": "Actualizar Contacto HubSpot",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.1,
+      "position": [
+        1024,
+        -48
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "RvtNOnm5GFZUedw7",
+          "name": "HubSpot Service Key account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "email": "={{ $('④ Limpiar y Validar Payload').item.json.contact_email }}",
+        "additionalFields": {},
+        "options": {}
+      },
+      "id": "23f08197-9258-408a-b850-36ccdcafcec8",
+      "name": "Crear Contacto HubSpot (evita 409)",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.1,
+      "position": [
+        1024,
+        208
+      ],
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "RvtNOnm5GFZUedw7",
+          "name": "HubSpot Service Key account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "d12a1db3-0f31-4294-8240-749c06dbba64",
+      "name": "Merge Resultado CRM",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        1264,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re: {{ $('④ Limpiar y Validar Payload').item.json.subject }}",
+        "message": "={{ $('④ Limpiar y Validar Payload').item.json.respuesta_ia }}",
+        "options": {
+          "threadId": "={{ $('④ Limpiar y Validar Payload').item.json.thread_id }}",
+          "sendTo": "={{ $('④ Limpiar y Validar Payload').item.json.contact_email }}"
+        }
+      },
+      "id": "e1dc9fe6-6674-4810-8514-eaac9504b1f8",
+      "name": "③ Crear Borrador Gmail (HITL)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1504,
+        80
+      ],
+      "webhookId": "94f59987-ef01-4fee-8721-628adcaedfff",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "L2QYh0GLIPbxw5iN",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "contacto",
+              "type": "string",
+              "value": "={{ $('④ Limpiar y Validar Payload').item.json.contact_email }}"
+            },
+            {
+              "name": "asunto",
+              "type": "string",
+              "value": "={{ $('④ Limpiar y Validar Payload').item.json.subject }}"
+            },
+            {
+              "name": "resumen_respuesta",
+              "type": "string",
+              "value": "={{ $('④ Limpiar y Validar Payload').item.json.respuesta_ia.slice(0, 200) }}"
+            },
+            {
+              "name": "borrador_id",
+              "type": "string",
+              "value": "={{ $json.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "94429ed1-00c5-49fa-a12e-5bff3b6617d9",
+      "name": "Limpiar Payload para Slack",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1744,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C2R8FK207",
+          "mode": "list",
+          "cachedResultName": "ops-marimur"
+        },
+        "text": "=📩 Nuevo correo de soporte procesado\n*De:* {{ $json.contacto }}\n*Asunto:* {{ $json.asunto }}\n*Resumen de la respuesta sugerida:* {{ $json.resumen_respuesta }}...\n\n✅ Borrador creado en Gmail, pendiente de revisión humana antes de enviar.",
+        "otherOptions": {}
+      },
+      "id": "689ac15b-3083-44bc-8ad0-b68c78155834",
+      "name": "Notificar a Slack (#ops-marimoon)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1984,
+        80
+      ],
+      "webhookId": "07c52a46-6891-47b0-95ed-c2750a7eed77",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "GdLrDPEE7HRoLyVy",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger - Casilla Soporte": {
+      "main": [
+        [
+          {
+            "node": "① ¿Es Auto-Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "① ¿Es Auto-Reply?": {
+      "main": [
+        [
+          {
+            "node": "Cortar Bucle (Auto-Reply Detectado)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agente de Soporte (Clasifica y Redacta)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente de Soporte (Clasifica y Redacta)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente de Soporte (Clasifica y Redacta)": {
+      "main": [
+        [
+          {
+            "node": "④ Limpiar y Validar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "④ Limpiar y Validar Payload": {
+      "main": [
+        [
+          {
+            "node": "¿Email Remitente Válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Email Remitente Válido?": {
+      "main": [
+        [
+          {
+            "node": "② Buscar Contacto en HubSpot (Look up)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Descartar (Email Vacío - evita 400)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "② Buscar Contacto en HubSpot (Look up)": {
+      "main": [
+        [
+          {
+            "node": "¿Contacto Ya Existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Contacto Ya Existe?": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Contacto HubSpot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear Contacto HubSpot (evita 409)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Contacto HubSpot": {
+      "main": [
+        [
+          {
+            "node": "Merge Resultado CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Contacto HubSpot (evita 409)": {
+      "main": [
+        [
+          {
+            "node": "Merge Resultado CRM",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Resultado CRM": {
+      "main": [
+        [
+          {
+            "node": "③ Crear Borrador Gmail (HITL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "③ Crear Borrador Gmail (HITL)": {
+      "main": [
+        [
+          {
+            "node": "Limpiar Payload para Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar Payload para Slack": {
+      "main": [
+        [
+          {
+            "node": "Notificar a Slack (#ops-marimoon)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4523f96d-8ebf-4be3-8b79-bbf483448b59",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "565aba3105fac6960e2148a45663a716b133ea846bcc13450cd5e7bb117c2636"
+  },
+  "nodeGroups": [],
+  "id": "8TSAN4f7Rm4n003F",
+  "tags": []
+}
